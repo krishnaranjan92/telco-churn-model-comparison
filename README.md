@@ -1,40 +1,29 @@
-# Telco Customer Churn — Multi-Model Classification & Streamlit Demo
+# Telco Customer Churn — Multi-Model Classification & Streamlit web application to demonstrate models
+
 
 ## a. Problem Statement
-Customer churn — when a subscriber stops using a company's service — is one
-of the most expensive problems in the telecom industry, since acquiring a
-new customer typically costs far more than retaining an existing one. This
-project builds and compares six classification models that predict whether
-a telecom customer will churn (`Yes`/`No`) based on their account and
-service usage attributes, so that a business could proactively target
-at-risk customers with retention offers.
+As part of this dataset "Telecom Customer Churn" we predict ahead of time whether customers are going to churn so we can flag at risk customers early and do something about them like sending a retention offer, or a call from support to understand the issue and concern. This project trains and compares six classification models to find the best model that can predict, given a telecom customer's account details and the services they've signed up for, whether they're going to churn.
 
 ## b. Dataset Description
-- **Source:** Telco Customer Churn dataset (Kaggle, originally published by
-  IBM Sample Data Sets).
-- **Instances:** ~7,043 customer records.
-- **Features:** 19 predictor columns spanning demographics (gender, senior
-  citizen status, partner/dependents), account information (tenure,
-  contract type, payment method, billing), and subscribed services
-  (phone, internet, streaming, security, backup, tech support add-ons).
+- **Source:** Kaggle
+- **Source URL:** `path = kagglehub.dataset_download("blastchar/telco-customer-churn")`
+- **Size:** ~7,043 customer records.
+- **Features:** 19 columns (customerID,gender,SeniorCitizen,Partner,Dependents,tenure,PhoneService,MultipleLines,InternetService,OnlineSecurity,OnlineBackup,DeviceProtection,TechSupport,StreamingTV,StreamingMovies,Contract,PaperlessBilling,PaymentMethod,MonthlyCharges,TotalCharges).
 - **Target:** `Churn` — binary (`Yes` / `No`).
-- **Class balance:** ~26.5% churn / ~73.5% no-churn (moderately imbalanced —
-  this is why MCC is reported alongside Accuracy).
-- **Preprocessing:** dropped `customerID`; coerced `TotalCharges` to
-  numeric (a handful of blank strings for new customers with 0 tenure were
-  imputed with the median); numeric features scaled with `StandardScaler`;
-  categorical features one-hot encoded.
-- **Imbalance handling:** `class_weight="balanced"` is set on every model
-  that supports it (Logistic Regression, Decision Tree, Random Forest), so
+- **Class balance:** ~26.5% churn / ~73.5% no-churn (moderately imbalanced).
+- **Preprocessing:**
+- **Feature Removal**: Dropped customerID as it is a non-predictive unique identifier.
+- **Data Cleaning:** Coerced **TotalCharges** to numeric, replaced blank strings (present in zero-tenure records) with the **median** value.
+- **Numerical Scaling:** Standardized continuous numerical features using StandardScaler to ensure zero mean and unit variance.
+- **Categorical Encoding:** Converted all categorical features into binary indicator variables using One-Hot Encoding.
+- **Imbalance handling:** `class_weight="balanced"` to supports  (Logistic Regression, Decision Tree, Random Forest), so
   the minority "churn" class isn't just ignored in favor of accuracy.
-- **Model selection:** each algorithm is tuned with a small grid search
-  under 5-fold stratified cross-validation, scored on MCC (see the grids
-  in `get_model_specs()` in `train_models.py`). The tuned pipeline is then
-  refit on the full training split and scored once on the held-out test
-  set — those held-out numbers are what's reported below.
+- **Model selection:** As this is an imbalanced classification problem, the best model is picked using MCC and F1 Score.
 
 ## c. GitHub Repository Link
 https://github.com/krishnaranjan92/telco-churn-model-comparison
+List of Merged PRs:
+https://github.com/krishnaranjan92/telco-churn-model-comparison/pulls?q=is%3AMerged+is%3Apr+
 
 ## d. Models Used
 
@@ -48,16 +37,11 @@ https://github.com/krishnaranjan92/telco-churn-model-comparison
 | Naive Bayes | 0.6868 | 0.8122 | 0.4512 | 0.8429 | 0.5878 | 0.4179 |
 | Random Forest (Ensemble) | 0.7663 | 0.8471 | 0.5401 | 0.7929 | 0.6425 | 0.4975 |
 
-Recall jumps noticeably for most models compared to an earlier, untuned
-pass (Logistic Regression's recall went from ~0.57 to ~0.81, for example)
-because of `class_weight="balanced"` — the models are now explicitly
-penalized for missing churners, not just for being wrong overall. Accuracy
-correspondingly drops a bit for some models; that trade-off is expected
-and is exactly why Accuracy alone isn't used to pick a winner.
+
 
 ### Winner Selection Criteria: MCC + F1
 
-Given the ~27% churn class imbalance, **Accuracy is not used to pick the winner** — a model that always predicts "No churn" would already score ~73% accuracy without being useful. Instead, each model is ranked separately on **MCC** (the most robust single metric under imbalance, since it uses all four confusion-matrix cells) and **F1** (the harmonic mean of precision and recall, capturing how well the model handles the minority "churn" class). The two per-metric ranks are summed into a `Combined_Rank` (lower is better); the model with the lowest combined rank wins. This logic lives in `select_best_model()` in `train_models.py` and is written out to `model/ranked_summary.csv` on every run; per-model cross-validation MCC and the winning hyperparameters from the grid search are in `model/cv_summary.csv`.
+Given the ~27% churn class imbalance, **Accuracy is not used to pick the winner** — so we are selecting the winner by **MCC + F1 score**. Each model is ranked separately on MCC and on F1; the two ranks are added together into a Combined Rank (lower is better), and the model with the lowest Combined Rank wins.
 
 | ML Model Name | MCC | F1 | MCC Rank | F1 Rank | Combined Rank |
 |---|---|---|---|---|---|
@@ -95,13 +79,20 @@ telco_churn_project/
 │   │-- naive_bayes.pkl
 │   │-- random_forest.pkl
 │   │-- label_encoder.pkl
-│   │-- meta.json
 │   │-- metrics_summary.csv
 │   │-- ranked_summary.csv    # Models ranked by MCC + F1 combined rank
 │   │-- cv_summary.csv        # Per-model CV MCC + winning hyperparameters
 ```
 
-## How to Reproduce
+## Requirement.txt 
+- streamlit>=1.38
+- scikit-learn>=1.5
+- numpy>=1.26
+- pandas>=2.2
+- joblib>=1.4
+- plotly>=5.22
+
+## How to Run
 ```bash
 pip install -r requirements.txt
 python train_models.py --data telco_customer_churn.csv
