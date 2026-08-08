@@ -1,5 +1,4 @@
 import argparse
-import json
 import os
 
 import joblib
@@ -224,17 +223,11 @@ def main(args):
     ranked_df.to_csv(os.path.join(MODEL_DIR, "ranked_summary.csv"), index=False)
     winner_model = ranked_df.iloc[0]["Model"]
 
-    meta = {
-        "target_col": target_col,
-        "numeric_cols": numeric_cols,
-        "categorical_cols": categorical_cols,
-        "feature_cols": numeric_cols + categorical_cols,
-        "winner_model": winner_model,
-        "winner_criteria": "Combined rank of MCC and F1 on held-out test set",
-        "cv_folds": CV_FOLDS,
-    }
-    with open(os.path.join(MODEL_DIR, "meta.json"), "w") as f:
-        json.dump(meta, f, indent=2)
+    # No meta.json artifact is written. The Streamlit app derives target_col,
+    # feature_cols, numeric_cols, and categorical_cols directly from a fitted
+    # pipeline's ColumnTransformer at load time, and derives the winner_model
+    # directly from ranked_summary.csv, so nothing here needs to be persisted
+    # separately.
 
     print("\n=== Final Comparison Table (held-out test set) ===")
     print(results_df.round(4).to_string(index=False))
