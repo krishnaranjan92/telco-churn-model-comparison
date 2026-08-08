@@ -21,8 +21,9 @@ As part of this dataset "Telecom Customer Churn" we predict ahead of time whethe
 - **Model selection:** As this is an imbalanced classification problem, the best model is picked using MCC and F1 Score.
 
 ## c. GitHub Repository Link
+- URL:
 https://github.com/krishnaranjan92/telco-churn-model-comparison
-List of Merged PRs:
+- List of Merged PRs:
 https://github.com/krishnaranjan92/telco-churn-model-comparison/pulls?q=is%3AMerged+is%3Apr+
 
 ## d. Models Used
