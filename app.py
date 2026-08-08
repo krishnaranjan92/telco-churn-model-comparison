@@ -1,4 +1,3 @@
-import json
 import os
 import joblib
 import numpy as np
@@ -123,13 +122,15 @@ with st.container(border=True):
 st.divider()
 
 
-@st.cache_resource
-def load_meta():
-    path = os.path.join(MODEL_DIR, "meta.json")
-    if not os.path.exists(path):
-        return None
-    with open(path) as f:
-        return json.load(f)
+TARGET_COL = "Churn"
+
+MODEL_FILES = {
+    "Logistic Regression": "logistic_regression.pkl",
+    "Decision Tree": "decision_tree.pkl",
+    "kNN": "knn.pkl",
+    "Naive Bayes": "naive_bayes.pkl",
+    "Random Forest (Ensemble)": "random_forest.pkl",
+}
 
 
 @st.cache_resource
@@ -142,6 +143,32 @@ def load_label_encoder():
 def load_model(model_file):
     path = os.path.join(MODEL_DIR, model_file)
     return joblib.load(path) if os.path.exists(path) else None
+
+
+@st.cache_resource
+def load_feature_cols():
+    """Derive the numeric/categorical/feature column lists directly from a
+    trained pipeline's fitted ColumnTransformer, instead of relying on a
+    separate meta.json artifact. Tries each saved model until one loads."""
+    for model_file in MODEL_FILES.values():
+        pipe = load_model(model_file)
+        if pipe is None or not hasattr(pipe, "named_steps"):
+            continue
+        preprocessor = pipe.named_steps.get("preprocessor")
+        if preprocessor is None or not hasattr(preprocessor, "transformers_"):
+            continue
+
+        numeric_cols, categorical_cols = [], []
+        for name, _transformer, cols in preprocessor.transformers_:
+            if name == "num":
+                numeric_cols = list(cols)
+            elif name == "cat":
+                categorical_cols = list(cols)
+
+        if numeric_cols or categorical_cols:
+            return numeric_cols, categorical_cols
+
+    return [], []
 
 
 @st.cache_data
@@ -238,25 +265,17 @@ def get_positive_class_index(label_encoder, preferred_label="Yes"):
     return len(classes) - 1
 
 
-MODEL_FILES = {
-    "Logistic Regression": "logistic_regression.pkl",
-    "Decision Tree": "decision_tree.pkl",
-    "kNN": "knn.pkl",
-    "Naive Bayes": "naive_bayes.pkl",
-    "Random Forest (Ensemble)": "random_forest.pkl",
-}
-
-meta = load_meta()
 label_encoder = load_label_encoder()
 summary_df = load_summary()
 ranked_df = load_ranked_summary()
+numeric_cols, categorical_cols = load_feature_cols()
+feature_cols = numeric_cols + categorical_cols
 
-if meta is None or label_encoder is None:
+if label_encoder is None or not feature_cols:
     st.error(f"Missing model artifacts in `./{MODEL_DIR}` folder. Please run `train_models.py` first.")
     st.stop()
 
-target_col = meta.get("target_col", "Churn")
-feature_cols = meta.get("feature_cols", [])
+target_col = TARGET_COL
 positive_idx = get_positive_class_index(label_encoder, preferred_label="Yes")
 positive_label = label_encoder.classes_[positive_idx]
 
@@ -318,7 +337,7 @@ if uploaded_file is not None:
 
     with st.expander("📋 Expected file schema", expanded=False):
         st.write(f"**Required feature columns ({len(feature_cols)}):**")
-        st.code(", ".join(feature_cols) or "(none defined in meta.json)")
+        st.code(", ".join(feature_cols) or "(unable to determine feature columns from trained models)")
         st.write(f"**Optional target column:** `{target_col}` (values: {list(label_encoder.classes_)})")
 
     validation = validate_uploaded_data(data, feature_cols, target_col, label_encoder)
