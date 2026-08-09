@@ -6,9 +6,9 @@ As part of this dataset "Telecom Customer Churn" we predict ahead of time whethe
 
 ## b. Dataset Description
 - **Source:** Kaggle
-- **Source URL:** `path = kagglehub.dataset_download("blastchar/telco-customer-churn")`
-- **Size:** ~7,043 customer records.
-- **Features:** 19 columns (customerID,gender,SeniorCitizen,Partner,Dependents,tenure,PhoneService,MultipleLines,InternetService,OnlineSecurity,OnlineBackup,DeviceProtection,TechSupport,StreamingTV,StreamingMovies,Contract,PaperlessBilling,PaymentMethod,MonthlyCharges,TotalCharges).
+- **Source URL:** [Kaggle - Telco Customer Churn](https://www.kaggle.com/datasets/blastchar/telco-customer-churn)
+- **Size:** ~**7,043** customer records.
+- **Features:** **19 columns** (customerID,gender,SeniorCitizen,Partner,Dependents,tenure,PhoneService,MultipleLines,InternetService,OnlineSecurity,OnlineBackup,DeviceProtection,TechSupport,StreamingTV,StreamingMovies,Contract,PaperlessBilling,PaymentMethod,MonthlyCharges,TotalCharges).
 - **Target:** `Churn` — binary (`Yes` / `No`).
 - **Class balance:** ~26.5% churn / ~73.5% no-churn (moderately imbalanced).
 - **Preprocessing:**
