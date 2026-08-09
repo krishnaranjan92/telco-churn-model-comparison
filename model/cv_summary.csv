@@ -1,0 +1,6 @@
+Model,CV_MCC,Best_Params
+Logistic Regression,0.4785236703365291,{'classifier__C': 1.0}
+Decision Tree,0.44577153440948447,"{'classifier__max_depth': 6, 'classifier__min_samples_leaf': 1}"
+kNN,0.43239935095941784,"{'classifier__n_neighbors': 15, 'classifier__weights': 'uniform'}"
+Naive Bayes,0.43073974159192074,{}
+Random Forest,0.47858398057909435,"{'classifier__max_depth': 8, 'classifier__n_estimators': 400}"
