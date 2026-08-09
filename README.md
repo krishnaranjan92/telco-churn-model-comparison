@@ -87,12 +87,13 @@ telco_churn_project/
 ```
 
 ## Requirement.txt 
-- streamlit>=1.38
-- scikit-learn>=1.5
-- numpy>=1.26
-- pandas>=2.2
-- joblib>=1.4
-- plotly>=5.22
+- streamlit>=1.38,<2.0
+- scikit-learn>=1.5,<1.6
+- numpy>=1.26,<2.0
+- pandas>=2.2,<3.0
+- joblib>=1.4,<2.0
+- plotly>=5.22,<6.0
+- matplotlib>=3.8,<4.0
 
 ## How to Run
 ```bash
