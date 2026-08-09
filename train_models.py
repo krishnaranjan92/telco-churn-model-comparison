@@ -54,18 +54,23 @@ def load_and_clean(path):
     print("df data set has {0} rows and {1} columns".format(df.shape[0], df.shape[1]))
     print("------------------------------------------------")
 
+    print(f"Checking NULL or MISSING Values in training DataSet \n")
+    print(nullCheck(df))
+    print("------------------------------------------------")
     # Data cleaning
     # Total charges Coerced from string → numeric , then missing values filled with the median
 
     if "TotalCharges" in df.columns:
-        df["TotalCharges"] = pd.to_numeric(df["TotalCharges"], errors="coerce")
+        # df["TotalCharges"] = pd.to_numeric(df["TotalCharges"], errors="coerce")
+        df['TotalCharges'] = pd.to_numeric(df['TotalCharges'].str.strip(), errors='coerce')
         df["TotalCharges"] = df["TotalCharges"].fillna(df["TotalCharges"].median())
 
     # customerID dropped entirely as this is a unique key with no importance in prediction
     if "customerID" in df.columns:
         df = df.drop(columns=["customerID"])
+    cols_to_check = [c for c in df.columns if c != "TotalCharges"]
+    df = df.dropna(subset=cols_to_check)
 
-    df = df.dropna()
     return df
 
 
@@ -81,12 +86,6 @@ def build_preprocessor(X):
     )
     return preprocessor, numeric_cols, categorical_cols
 
-
-# Each entry is (estimator, param_grid). Grids are intentionally small -
-# this is model comparison, not a full tuning pass, so we just nudge the
-# handful of knobs that matter most for each algorithm. class_weight is
-# set to "balanced" everywhere it's supported since churn is ~27% of
-# the data and we don't want models defaulting to "always predict No".
 def get_model_specs():
     return {
         "Logistic Regression": (
@@ -124,19 +123,15 @@ def evaluate(y_true, y_pred, y_proba):
 
 
 def select_best_model(results_df):
-    """MCC + F1 combined-rank winner. We don't use Accuracy/AUC here -
-    with ~27% churn, a model that just predicts "No" for everyone still
-    scores ~73% accuracy, so those two metrics can be misleading on
-    their own."""
+    """MCC + F1 combined-rank winner"""
     df = results_df.copy()
     df["MCC_rank"] = df["MCC"].rank(ascending=False, method="min")
     df["F1_rank"] = df["F1"].rank(ascending=False, method="min")
     df["Combined_Rank"] = df["MCC_rank"] + df["F1_rank"]
     df["MCC_F1_Avg"] = (df["MCC"] + df["F1"]) / 2
-
     df = df.sort_values(["Combined_Rank", "MCC"], ascending=[True, False]).reset_index(drop=True)
-    winner = df.iloc[0]["Model"]
 
+    winner = df.iloc[0]["Model"]
     print("\n=== MCC + F1 Ranking ===")
     print(df[["Model", "MCC", "F1", "MCC_rank", "F1_rank", "Combined_Rank"]].round(4).to_string(index=False))
     print(f"\nWinner (best combined MCC + F1 rank): {winner}")
@@ -148,8 +143,9 @@ def main(args):
 
     print(f"Loading data from: {args.data}")
     df = load_and_clean(args.data)
-    print(f"Checking NULL or MISSING Values in training DataSet \n")
-    print(nullCheck(df))
+
+
+
     target_col = args.target
     if target_col not in df.columns:
         raise ValueError(f"Target column '{target_col}' not found. Available columns: {list(df.columns)}")
@@ -183,16 +179,12 @@ def main(args):
         pipe = Pipeline(steps=[("preprocessor", preprocessor), ("classifier", clf)])
 
         if param_grid:
-            # small grid search, scored on MCC since that's what we care
-            # about for the final ranking anyway
             search = GridSearchCV(pipe, param_grid, scoring=mcc_scorer, cv=cv, n_jobs=-1)
             search.fit(X_train, y_train)
             best_pipe = search.best_estimator_
             best_params = search.best_params_
             cv_mcc = search.best_score_
         else:
-            # GaussianNB has nothing worth tuning, so just fit once and
-            # get a CV score for comparability with the tuned models
             best_pipe = pipe.fit(X_train, y_train)
             best_params = {}
             cv_mcc = cross_val_score(pipe, X_train, y_train, scoring=mcc_scorer, cv=cv, n_jobs=-1).mean()
@@ -211,6 +203,7 @@ def main(args):
 
         fname = name.lower().replace(" ", "_") + ".pkl"
         joblib.dump(best_pipe, os.path.join(MODEL_DIR, fname))
+
         print(f"Trained {name} (CV MCC={cv_mcc:.4f}, params={best_params}): {metrics}")
 
     results_df = pd.DataFrame(results)[["Model", "Accuracy", "AUC", "Precision", "Recall", "F1", "MCC"]]
@@ -222,12 +215,6 @@ def main(args):
     ranked_df = select_best_model(results_df)
     ranked_df.to_csv(os.path.join(MODEL_DIR, "ranked_summary.csv"), index=False)
     winner_model = ranked_df.iloc[0]["Model"]
-
-    # No meta.json artifact is written. The Streamlit app derives target_col,
-    # feature_cols, numeric_cols, and categorical_cols directly from a fitted
-    # pipeline's ColumnTransformer at load time, and derives the winner_model
-    # directly from ranked_summary.csv, so nothing here needs to be persisted
-    # separately.
 
     print("\n=== Final Comparison Table (held-out test set) ===")
     print(results_df.round(4).to_string(index=False))
