@@ -323,7 +323,21 @@ with st.sidebar:
         )
 
         if rating_choice:
-            st.success(f"Thank you for your feedback! You selected **{rating_choice}**")
+            rating_value = rating_choice.count("⭐")
+            log_path = os.path.join(MODEL_DIR, "ratings_log.csv")
+            log_row = pd.DataFrame(
+                [{
+                    "timestamp": pd.Timestamp.now().isoformat(),
+                    "rating": rating_value,
+                    "model_selected": model_choice,
+                }]
+            )
+            try:
+                write_header = not os.path.exists(log_path)
+                log_row.to_csv(log_path, mode="a", header=write_header, index=False)
+                st.success(f"Thanks! Your **{rating_value}-star** rating was saved.")
+            except OSError as e:
+                st.warning(f"Rating recorded for this session, but couldn't be saved to disk: {e}")
 
 # --------
 # Main
