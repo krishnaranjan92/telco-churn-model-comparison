@@ -30,14 +30,15 @@ https://github.com/krishnaranjan92/telco-churn-model-comparison/pulls?q=is%3AMer
 
 ### Comparison Table (held-out test set, tuned models)
 
-| ML Model Name | Accuracy | AUC | Precision | Recall | F1 | MCC |
-|---|---|---|---|---|---|---|
-| Logistic Regression | 0.7398 | 0.8494 | 0.5055 | 0.8143 | 0.6238 | 0.4704 |
-| Decision Tree | 0.7493 | 0.8399 | 0.5169 | 0.8214 | 0.6345 | 0.4869 |
-| kNN | 0.7862 | 0.8309 | 0.5978 | 0.5893 | 0.5935 | 0.4485 |
-| Naive Bayes | 0.6868 | 0.8122 | 0.4512 | 0.8429 | 0.5878 | 0.4179 |
-| Random Forest (Ensemble) | 0.7663 | 0.8471 | 0.5401 | 0.7929 | 0.6425 | 0.4975 |
+## Held-Out Test Results
 
+| ML Model | Accuracy | AUC | Precision | Recall | F1 | MCC |
+|---|---:|---:|---:|---:|---:|---:|
+| Logistic Regression | 0.7398 | **0.8494** | 0.5055 | 0.8143 | 0.6238 | 0.4704 |
+| Decision Tree | 0.7493 | 0.8399 | 0.5169 | 0.8214 | 0.6345 | 0.4869 |
+| kNN | **0.7862** | 0.8312 | **0.5978** | 0.5893 | 0.5935 | 0.4485 |
+| Naive Bayes | 0.6868 | 0.8122 | 0.4512 | **0.8429** | 0.5878 | 0.4179 |
+| **Random Forest (Ensemble)** | 0.7663 | 0.8471 | 0.5401 | 0.7929 | **0.6425** | **0.4975** |
 
 
 ### Winner Selection Criteria: MCC + F1
@@ -53,15 +54,14 @@ Given the ~27% churn class imbalance, **Accuracy is not used to pick the winner*
 | Naive Bayes | 0.4179 | 0.5878 | 5 | 5 | 10 |
 
 ### Observations
-
 | ML Model Name | Observation about model performance |
 |---|---|
-| Random Forest (Ensemble) | **Winner on MCC + F1** — best on both metrics individually (MCC 0.4975, F1 0.6425), the best achievable combined rank (2). Best hyperparameters from the grid search: `max_depth=8, n_estimators=400`. Constraining tree depth (vs. the earlier unconstrained/untuned version) reduces overfitting to noise while `class_weight="balanced"` keeps recall high — the combination of averaging many shallow, imbalance-aware trees is what pushes it ahead of the single linear model here. |
-| Decision Tree | Close second (Combined Rank 4) once tuned (`max_depth=6`) and balanced — a striking change from an earlier untuned run where a single unconstrained tree was the weakest model by a wide margin. Depth-limiting is doing most of the work: it stops the tree from memorizing the training split. |
-| Logistic Regression | Third — still a strong, stable baseline (MCC 0.4704, F1 0.6238) and the best AUC of any model (0.8494), meaning its *ranking* of customers by churn risk is arguably the most reliable, even though its default 0.5 decision threshold isn't the best-calibrated for this class balance. |
-| kNN | Best hyperparameters found were `n_neighbors=15, weights=uniform`. It has no direct imbalance handling (kNN has no `class_weight`), so its recall (0.5893) lags the other models noticeably — it's the only model here that doesn't explicitly compensate for the minority class. |
-| Naive Bayes | Lowest MCC and F1 of the five. Its high recall (0.8429) is a byproduct of the algorithm's independence assumption, not a deliberate imbalance strategy, and its precision (0.4512) is the weakest of all models — it flags far more false positives than it needs to for that same recall. **Caveat:** GaussianNB assumes features are conditionally independent given the class, but that assumption is violated here — one-hot-encoded columns from the same underlying attribute are mechanically correlated (e.g. `InternetService_No` implies `OnlineSecurity_No`, `OnlineBackup_No`, `TechSupport_No`, `StreamingTV_No`, and `StreamingMovies_No` are all also 1, since those services don't exist without internet). Treating correlated features as independent causes the model to double-count the same evidence, which likely contributes to its weak precision here, on top of it being the only model with no imbalance handling. |
-| **Overall Winner (MCC + F1)** | **Random Forest** — best on both MCC and F1 after tuning and imbalance-aware training. This differs from a naive/untuned comparison, where Logistic Regression can look like the winner; adding `class_weight="balanced"` and even a light hyperparameter search changes the ranking, which is itself worth noting in a write-up — the "best model" is a property of the whole pipeline, not just the algorithm choice. |
+| **Random Forest** | The best-balanced model overall. Limiting tree depth reduces overfitting, while balanced class weights help preserve recall. Averaging many shallow trees produces the strongest MCC and F1. |
+| **Decision Tree** | A close second after depth tuning and class balancing. It achieves strong recall and substantially better generalization than an unconstrained tree. |
+| **Logistic Regression** | A stable baseline with the highest AUC. It ranks churn risk well, although the default decision threshold produces lower precision than kNN. |
+| **kNN** | Highest accuracy and precision, but substantially lower recall. It has no direct class-weight mechanism and therefore misses more churners. |
+| **Gaussian Naive Bayes** | Highest recall but lowest precision, MCC, and F1. Correlated one-hot service indicators weaken its conditional-independence assumption and increase false positives. |
+**Overall winner: Random Forest.** It ranks first on both MCC and F1 and therefore achieves the best possible combined rank.
 
 ---
 
@@ -97,13 +97,58 @@ telco_churn_project/
 ## How to Run
 ```bash
 pip install -r requirements.txt
+```
+
+### 4. Train and save all models
+
+```bash
 python train_models.py --data Telco-Customer-Churn.csv
+```
+
+This command regenerates:
+
+- `test_data.csv`
+- All trained model pipelines in `model/`
+- `metrics_summary.csv`
+- `ranked_summary.csv`
+- `cv_summary.csv`
+
+### 5. Start the application
+
+```bash
 streamlit run app.py
 ```
 
+
+## Reproducibility
+
+- Random seed: `42`
+- Test size: `15%`
+- Cross-validation: five-fold stratified CV
+- Grid-search scoring metric: MCC
+- Winner rule: combined MCC and F1 rank
+
+For the most reliable model persistence, train and serve the saved artifacts using the same exact scikit-learn version.
+
+
 ## Streamlit App Features
-- CSV upload for test data
-- Model selection dropdown (all 5 algorithm families, 6 total counting the
-  ensemble as separate from its base learners per the assignment spec)
-- Live evaluation metrics (Accuracy, AUC, Precision, Recall, F1, MCC)
-- Confusion matrix heatmap and full classification report
+
+- Upload test_data.csv  file.
+- Select any of the five trained models.
+- Preview predicted churn labels and probabilities.
+- Download the complete predictions as CSV.
+- Display Accuracy, AUC, Precision, Recall, F1, and MCC when labels are present.
+- Display a confusion matrix and full classification report.
+- Plot an ROC curve and tree-based feature importance.
+- Compare all models using metric-specific charts, a full results table, and a radar chart.
+
+## Links
+
+- **Live Streamlit app:** [https://2025ac05215.streamlit.app/](https://2025ac05215.streamlit.app/)
+- **GitHub repository:** [https://github.com/krishnaranjan92/telco-churn-model-comparison](https://github.com/krishnaranjan92/telco-churn-model-comparison)
+- **Dataset:** [Kaggle - Telco Customer Churn](https://www.kaggle.com/datasets/blastchar/telco-customer-churn)
+
+## Assignment Note
+
+The assignment brief uses the phrase "six models" in some sentences but enumerates and scores five specific algorithms. 
+This repository implements every algorithm in the numbered list and comparison table.
